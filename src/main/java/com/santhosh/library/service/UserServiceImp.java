@@ -6,6 +6,8 @@ import com.santhosh.library.entity.Role;
 import com.santhosh.library.entity.User;
 import com.santhosh.library.exception.EmailAlreadyExistsException;
 import com.santhosh.library.repository.UserRepository;
+import com.santhosh.library.security.JwtService;
+import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -14,15 +16,18 @@ public class UserServiceImp implements UserService{
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public UserServiceImp(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserServiceImp(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @Override
+    @Transactional
     public AuthResponse signUp(SignupRequest request){
-        boolean userExist = userRepository.userExistsByEmail(request.getEmail());
+        boolean userExist = userRepository.existsByEmail(request.getEmail());
         if(userExist){
             throw new EmailAlreadyExistsException("Email already exist");
         }
@@ -33,8 +38,8 @@ public class UserServiceImp implements UserService{
         user.setRole(Role.MEMBER);
         userRepository.save(user);
         AuthResponse response = new AuthResponse();
-        response.setAccessToken("access_token");
-        response.setRefreshToken("refresh_token");
+        response.setAccessToken(jwtService.generateAccessToken(user));
+        response.setRefreshToken(jwtService.generateRefreshToken(user));
         response.setEmail(user.getEmail());
         response.setName(user.getName());
         response.setRole(user.getRole());
