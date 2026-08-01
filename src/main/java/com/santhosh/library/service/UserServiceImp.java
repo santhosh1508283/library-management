@@ -29,6 +29,7 @@ public class UserServiceImp implements UserService{
     }
 
     @Override
+    @Transactional
     public AuthResponse signUp(SignupRequest request){
         boolean userExist = userRepository.existsByEmail(request.getEmail());
         if(userExist){
@@ -50,7 +51,6 @@ public class UserServiceImp implements UserService{
     }
 
     @Override
-    @Transactional
     public AuthResponse login(LoginRequest request){
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() ->
