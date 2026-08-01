@@ -1,6 +1,7 @@
 package com.santhosh.library.controller;
 
 import com.santhosh.library.dto.AuthResponse;
+import com.santhosh.library.dto.LoginRequest;
 import com.santhosh.library.dto.SignupRequest;
 import com.santhosh.library.service.UserService;
 import jakarta.validation.Valid;
@@ -23,5 +24,10 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signUp(@RequestBody @Valid SignupRequest request){
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.signUp(request));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest request){
+        return ResponseEntity.ok(userService.login(request));
     }
 }
