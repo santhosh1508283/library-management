@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import javax.swing.plaf.PanelUI;
 import java.util.List;
 
 @RestController
@@ -41,5 +42,12 @@ public class BookController {
     @PreAuthorize("hasAnyRole('LIBRARIAN', 'ADMIN')")
     public ResponseEntity<BookResponse> updateBook(@RequestBody @Valid CreateBookRequest request, @PathVariable Long id){
         return ResponseEntity.ok(bookService.updateBook(request, id));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('LIBRARIAN', 'ADMIN')")
+    public ResponseEntity<Void> deleteBook(@PathVariable Long id){
+        bookService.deleteBook(id);
+        return ResponseEntity.noContent().build();
     }
 }

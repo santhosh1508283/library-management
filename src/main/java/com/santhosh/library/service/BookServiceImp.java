@@ -9,6 +9,7 @@ import com.santhosh.library.repository.BookRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -101,5 +102,12 @@ public class BookServiceImp implements BookService{
         response.setIsbn(book.getIsbn());
 
         return response;
+    }
+    @Override
+    @Transactional
+    public void deleteBook(Long id){
+        Book book = bookRepository.findByIdAndDeletedFalse(id).orElseThrow(() -> new BookNotFoundException("Book does not exist"));
+        book.setDeleted(true);
+        book.setDeletedAt(LocalDateTime.now());
     }
 }
