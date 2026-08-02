@@ -53,4 +53,12 @@ public class JwtService {
         return claims.getSubject().equals(user.getEmail()) && claims.getExpiration().after(new Date());
     }
 
+    public Date extractExpiration(String token){
+        return extractAllClaims(token).getExpiration();
+    }
+
+    public boolean isRefreshTokenValid(String token, User user){
+        return isTokenValid(token, user);
+    }
+
 }
