@@ -8,6 +8,9 @@ import com.santhosh.library.repository.BookRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 public class BookServiceImp implements BookService{
 
@@ -39,5 +42,25 @@ public class BookServiceImp implements BookService{
 
 
         return response;
+    }
+
+    @Override
+    public List<BookResponse> getAllBooks(){
+        List<Book> books = bookRepository.findByDeletedFalse();
+        List<BookResponse> resultBooks = new ArrayList<>();
+
+        for (Book book : books) {
+            BookResponse response = new BookResponse();
+
+            response.setId(book.getId());
+            response.setTitle(book.getTitle());
+            response.setAuthor(book.getAuthor());
+            response.setEdition(book.getEdition());
+            response.setIsbn(book.getIsbn());
+
+            resultBooks.add(response);
+        }
+
+        return resultBooks;
     }
 }
