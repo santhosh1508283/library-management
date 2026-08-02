@@ -411,3 +411,19 @@ com.santhosh.library
 ├── config
 ├── util
 └── enums (optional)
+
+Authentication Status
+
+✅ Signup
+✅ Login
+✅ JWT Filter
+✅ Stateless Security
+✅ Access Token
+✅ Refresh Token
+✅ Refresh Endpoint
+✅ Refresh Token Persistence
+✅ Logout
+✅ Revoked Tokens
+✅ Global Exception Handling
+✅ Validation
+✅ Transactions
