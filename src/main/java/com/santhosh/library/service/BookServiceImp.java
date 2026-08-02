@@ -76,4 +76,30 @@ public class BookServiceImp implements BookService{
         response.setEdition(book.getEdition());
         return response;
     }
+
+    @Override
+    @Transactional
+    public BookResponse updateBook(CreateBookRequest request, Long id){
+        Book book = bookRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new BookNotFoundException("Book not found"));
+
+        if (!book.getIsbn().equals(request.getIsbn())
+                && bookRepository.existsByIsbn(request.getIsbn())) {
+            throw new BookAlreadyExistsException("Book with same ISBN exists");
+        }
+
+        book.setTitle(request.getTitle());
+        book.setAuthor(request.getAuthor());
+        book.setEdition(request.getEdition());
+        book.setIsbn(request.getIsbn());
+
+        BookResponse response = new BookResponse();
+        response.setId(book.getId());
+        response.setTitle(book.getTitle());
+        response.setAuthor(book.getAuthor());
+        response.setEdition(book.getEdition());
+        response.setIsbn(book.getIsbn());
+
+        return response;
+    }
 }

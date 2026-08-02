@@ -9,4 +9,5 @@ public interface BookService {
     BookResponse createBook(CreateBookRequest request);
     List<BookResponse> getAllBooks();
     BookResponse getBookById(Long id);
+    BookResponse updateBook(CreateBookRequest request, Long id);
 }
