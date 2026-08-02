@@ -105,27 +105,53 @@ public class UserServiceImp implements UserService{
 
     @Override
     @Transactional
-    public AuthResponse refreshToken(RefreshTokenRequest request){
-        String refreshToken = request.getRefreshToken();
+    public AuthResponse refreshToken(RefreshTokenRequest request) {
 
-        RefreshToken storedRefreshToken = refreshTokenRepository
-                .findByRefreshToken(refreshToken)
+        String refreshTokenValue = request.getRefreshToken();
+
+        RefreshToken storedRefreshToken = validateRefreshToken(refreshTokenValue);
+
+        User user = storedRefreshToken.getUser();
+
+        AuthResponse response = new AuthResponse();
+
+        response.setRefreshToken(refreshTokenValue);
+        response.setAccessToken(jwtService.generateAccessToken(user));
+        response.setName(user.getName());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole());
+
+        storedRefreshToken.setLastUsedAt(LocalDateTime.now());
+
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public void logout(RefreshTokenRequest request) {
+
+        RefreshToken storedRefreshToken =
+                validateRefreshToken(request.getRefreshToken());
+
+        storedRefreshToken.setRevoked(true);
+    }
+
+    private RefreshToken validateRefreshToken(String refreshTokenValue) {
+
+        RefreshToken refreshToken = refreshTokenRepository
+                .findByRefreshToken(refreshTokenValue)
                 .orElseThrow(() ->
                         new InvalidCredentialsException("Invalid refresh token"));
 
-        if (storedRefreshToken.isRevoked()) {
-            throw new InvalidCredentialsException("Refresh token has been revoked");
-        }
-
-        String email = jwtService.extractEmail(refreshToken);
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new InvalidCredentialsException("Invalid refresh token"));
-        if(!jwtService.isRefreshTokenValid(refreshToken, user)){
+        if (refreshToken.isRevoked()) {
             throw new InvalidCredentialsException("Invalid refresh token");
         }
-        AuthResponse response = new AuthResponse();
-        response.setRefreshToken(refreshToken);
-        response.setAccessToken(jwtService.generateAccessToken(user));
-        storedRefreshToken.setLastUsedAt(LocalDateTime.now());
-        return response;
+        User user = refreshToken.getUser();
+
+        if (!jwtService.isRefreshTokenValid(refreshTokenValue, user)) {
+            throw new InvalidCredentialsException("Invalid refresh token");
+        }
+
+        return refreshToken;
     }
 }

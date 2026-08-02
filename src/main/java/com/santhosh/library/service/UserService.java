@@ -10,5 +10,6 @@ public interface UserService {
     AuthResponse signUp(SignupRequest request);
     AuthResponse login(LoginRequest request);
     AuthResponse refreshToken(RefreshTokenRequest request);
+    void logout(RefreshTokenRequest request);
 
 }
