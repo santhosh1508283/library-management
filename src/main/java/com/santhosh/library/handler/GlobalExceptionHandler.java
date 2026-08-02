@@ -1,9 +1,7 @@
 package com.santhosh.library.handler;
 
 import com.santhosh.library.dto.ErrorResponse;
-import com.santhosh.library.exception.EmailAlreadyExistsException;
-import com.santhosh.library.exception.InvalidCredentialsException;
-import com.santhosh.library.exception.UserNotFoundException;
+import com.santhosh.library.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -67,4 +65,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(BookAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleBookAlreadyExistsException(BookAlreadyExistsException ex){
+        ErrorResponse response = new ErrorResponse();
+        response.setMessage(ex.getMessage());
+        response.setTimestamp(LocalDateTime.now());
+        response.setError(HttpStatus.CONFLICT.getReasonPhrase());
+        response.setStatus(HttpStatus.CONFLICT.value());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(BookNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleBookNotFoundException(BookNotFoundException ex){
+        ErrorResponse response = new ErrorResponse();
+        response.setMessage(ex.getMessage());
+        response.setTimestamp(LocalDateTime.now());
+        response.setError(HttpStatus.NOT_FOUND.getReasonPhrase());
+        response.setStatus(HttpStatus.NOT_FOUND.value());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
 }
