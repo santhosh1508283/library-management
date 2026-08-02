@@ -2,6 +2,7 @@ package com.santhosh.library.service;
 
 import com.santhosh.library.dto.AuthResponse;
 import com.santhosh.library.dto.LoginRequest;
+import com.santhosh.library.dto.RefreshTokenRequest;
 import com.santhosh.library.dto.SignupRequest;
 import com.santhosh.library.entity.Role;
 import com.santhosh.library.entity.User;
@@ -66,6 +67,20 @@ public class UserServiceImp implements UserService{
         response.setRole(user.getRole());
         response.setAccessToken(jwtService.generateAccessToken(user));
         response.setRefreshToken(jwtService.generateRefreshToken(user));
+        return response;
+    }
+
+    @Override
+    public AuthResponse refreshToken(RefreshTokenRequest request){
+        String refreshToken = request.getRefreshToken();
+        String email = jwtService.extractEmail(refreshToken);
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new InvalidCredentialsException("Invalid refresh Token"));
+        if(!jwtService.isRefreshTokenValid(refreshToken, user)){
+            throw new InvalidCredentialsException("Invalid refresh token");
+        }
+        AuthResponse response = new AuthResponse();
+        response.setRefreshToken(refreshToken);
+        response.setAccessToken(jwtService.generateAccessToken(user));
         return response;
     }
 }

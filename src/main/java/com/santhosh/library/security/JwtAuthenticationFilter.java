@@ -2,6 +2,7 @@ package com.santhosh.library.security;
 
 import com.santhosh.library.entity.User;
 import com.santhosh.library.repository.UserRepository;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,17 +37,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         String jwtToken = authHeader.substring(7);
-        String email = jwtService.extractEmail(jwtToken);
-        if(email != null && SecurityContextHolder.getContext().getAuthentication() == null){
-            User user = userRepository.findByEmail(email).orElse(null);
-            if(user!=null && jwtService.isTokenValid(jwtToken, user)){
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource()
-                                .buildDetails(request)
-                );
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+        try {
+            String email = jwtService.extractEmail(jwtToken);
+            if(email != null && SecurityContextHolder.getContext().getAuthentication() == null){
+                User user = userRepository.findByEmail(email).orElse(null);
+                if(user!=null && jwtService.isTokenValid(jwtToken, user)){
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource()
+                                    .buildDetails(request)
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
+        } catch (ExpiredJwtException e){
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+
+            response.getWriter().write("""
+        {
+            "message":"Access token expired"
+        }
+        """);
+            return;
         }
         filterChain.doFilter(request, response);
     }

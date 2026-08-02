@@ -2,6 +2,7 @@ package com.santhosh.library.controller;
 
 import com.santhosh.library.dto.AuthResponse;
 import com.santhosh.library.dto.LoginRequest;
+import com.santhosh.library.dto.RefreshTokenRequest;
 import com.santhosh.library.dto.SignupRequest;
 import com.santhosh.library.service.UserService;
 import jakarta.validation.Valid;
@@ -29,5 +30,10 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest request){
         return ResponseEntity.ok(userService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refreshToken(@RequestBody @Valid RefreshTokenRequest request){
+        return ResponseEntity.ok(userService.refreshToken(request));
     }
 }
