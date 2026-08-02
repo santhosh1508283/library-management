@@ -4,6 +4,7 @@ import com.santhosh.library.dto.BookResponse;
 import com.santhosh.library.dto.CreateBookRequest;
 import com.santhosh.library.entity.Book;
 import com.santhosh.library.exception.BookAlreadyExistsException;
+import com.santhosh.library.exception.BookNotFoundException;
 import com.santhosh.library.repository.BookRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -62,5 +63,17 @@ public class BookServiceImp implements BookService{
         }
 
         return resultBooks;
+    }
+
+    @Override
+    public BookResponse getBookById(Long id){
+        Book book = bookRepository.findByIdAndDeletedFalse(id).orElseThrow(() -> new BookNotFoundException("Book not found"));
+        BookResponse response = new BookResponse();
+        response.setId(book.getId());
+        response.setTitle(book.getTitle());
+        response.setAuthor(book.getAuthor());
+        response.setIsbn(book.getIsbn());
+        response.setEdition(book.getEdition());
+        return response;
     }
 }

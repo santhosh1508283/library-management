@@ -456,3 +456,18 @@ Review package organization once the project grows to keep responsibilities clea
 Finish the complete Library Management System first.
 
 After the project is functionally complete, revisit this document and implement improvements one by one instead of over-engineering early.
+
+Once the core features are working, we'll do one dedicated cleanup sprint:
+
+✅ Generic ApiResponse<T>
+✅ Global auditing (createdAt, updatedAt) via a base entity
+✅ Global soft delete support
+✅ Refresh token hashing (BCrypt)
+✅ Device-aware refresh tokens
+✅ Mapper layer (or MapStruct)
+✅ Better exception hierarchy
+✅ Pagination for book listing
+✅ Search & filtering
+✅ API documentation (Swagger/OpenAPI)
+✅ Caching where appropriate
+✅ Logging & monitoring improvements

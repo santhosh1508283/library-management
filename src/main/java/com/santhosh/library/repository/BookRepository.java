@@ -15,4 +15,6 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     List<Book> findByDeletedFalse();
 
     boolean existsByIsbn(String isbn);
+
+    Optional<Book> findByIdAndDeletedFalse(Long id);
 }

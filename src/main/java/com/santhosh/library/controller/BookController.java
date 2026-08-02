@@ -31,4 +31,9 @@ public class BookController {
     public ResponseEntity<List<BookResponse>> getAllBooks(){
         return ResponseEntity.ok(bookService.getAllBooks());
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<BookResponse> getBookById(@PathVariable Long id){
+        return ResponseEntity.ok(bookService.getBookById(id));
+    }
 }
