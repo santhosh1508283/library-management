@@ -44,20 +44,13 @@ public class JwtService {
         return Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
     }
 
-    private String extractEmail(String token){
+    public String extractEmail(String token){
         return extractAllClaims(token).getSubject();
     }
 
-    private Date extractExpiration(String token){
-        return extractAllClaims(token).getExpiration();
-    }
-
-    private boolean isTokenExpired(String token){
-        return extractExpiration(token).before(new Date());
-    }
-
     public boolean isTokenValid(String token, User user){
-        return extractEmail(token).equals(user.getEmail()) && !isTokenExpired(token);
+        Claims claims = extractAllClaims(token);
+        return claims.getSubject().equals(user.getEmail()) && claims.getExpiration().after(new Date());
     }
 
 }
