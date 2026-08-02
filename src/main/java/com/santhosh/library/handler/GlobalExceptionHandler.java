@@ -2,6 +2,7 @@ package com.santhosh.library.handler;
 
 import com.santhosh.library.dto.ErrorResponse;
 import com.santhosh.library.exception.EmailAlreadyExistsException;
+import com.santhosh.library.exception.InvalidCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -41,6 +42,17 @@ public class GlobalExceptionHandler {
         response.setStatus(HttpStatus.BAD_REQUEST.value());
         response.setError(HttpStatus.BAD_REQUEST.getReasonPhrase());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException ex){
+        ErrorResponse response = new ErrorResponse();
+        response.setMessage(ex.getMessage());
+        response.setTimestamp(LocalDateTime.now());
+        response.setError(HttpStatus.UNAUTHORIZED.getReasonPhrase());
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
 }
