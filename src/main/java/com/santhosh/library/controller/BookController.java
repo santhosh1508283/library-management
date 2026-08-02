@@ -2,6 +2,7 @@ package com.santhosh.library.controller;
 
 import com.santhosh.library.dto.BookResponse;
 import com.santhosh.library.dto.CreateBookRequest;
+import com.santhosh.library.dto.UpdateBookRequest;
 import com.santhosh.library.service.BookService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -40,7 +41,7 @@ public class BookController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('LIBRARIAN', 'ADMIN')")
-    public ResponseEntity<BookResponse> updateBook(@RequestBody @Valid CreateBookRequest request, @PathVariable Long id){
+    public ResponseEntity<BookResponse> updateBook(@RequestBody @Valid UpdateBookRequest request, @PathVariable Long id){
         return ResponseEntity.ok(bookService.updateBook(request, id));
     }
 

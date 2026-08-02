@@ -2,6 +2,7 @@ package com.santhosh.library.service;
 
 import com.santhosh.library.dto.BookResponse;
 import com.santhosh.library.dto.CreateBookRequest;
+import com.santhosh.library.dto.UpdateBookRequest;
 import com.santhosh.library.entity.Book;
 import com.santhosh.library.exception.BookAlreadyExistsException;
 import com.santhosh.library.exception.BookNotFoundException;
@@ -80,7 +81,7 @@ public class BookServiceImp implements BookService{
 
     @Override
     @Transactional
-    public BookResponse updateBook(CreateBookRequest request, Long id){
+    public BookResponse updateBook(UpdateBookRequest request, Long id){
         Book book = bookRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new BookNotFoundException("Book not found"));
 
