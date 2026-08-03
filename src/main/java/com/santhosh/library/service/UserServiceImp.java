@@ -59,7 +59,6 @@ public class UserServiceImp implements UserService{
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() ->
                         new InvalidCredentialsException("Invalid email or password"));
-        System.out.println(passwordEncoder.encode(request.getPassword()));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException("Invalid email or password");
