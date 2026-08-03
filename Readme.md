@@ -1,346 +1,351 @@
-# JDBC Lifecycle & Why It Exists
+# 📚 Library Management System
 
-## Goal
+A production-oriented **Library Management System** built using **Java**, **Spring Boot**, **Spring Security**, **JWT Authentication**, **Hibernate/JPA**, and **MySQL**.
 
-Understand how a Java application communicates with a relational database like MySQL and why JDBC exists.
-
----
-
-# Big Picture
-
-```
-Java Application
-        │
-        ▼
-     JDBC API
-        │
-        ▼
- Database Driver (MySQL Connector/J)
-        │
-        ▼
-     TCP/IP Socket
-        │
-        ▼
-     MySQL Server
-        │
-        ▼
-     Database (library_db)
-```
-
-Every database request follows this flow.
+The project is designed using real-world backend engineering practices rather than simple CRUD operations. It models how an actual library operates by separating **Books**, **Book Copies**, **Loans**, authentication, authorization, and future extensibility such as waitlists, payments, and notifications.
 
 ---
 
-# Why Does JDBC Exist?
+# 🚀 Features
 
-Imagine every database exposed its own Java API.
+## Authentication & Authorization
 
-MySQL:
+* JWT based authentication
+* Spring Security
+* Role Based Access Control (RBAC)
+* Roles
 
-```java
-MySqlConnection connection = new MySqlConnection();
-```
-
-PostgreSQL:
-
-```java
-PostgresConnection connection = new PostgresConnection();
-```
-
-Oracle:
-
-```java
-OracleConnection connection = new OracleConnection();
-```
-
-If a company switched databases, the entire application would need to be rewritten.
-
-Java solved this by introducing **JDBC (Java Database Connectivity)**.
-
-JDBC defines a **standard contract (API)** that every database driver must implement.
-
-Because of this, Java applications can use the same interfaces regardless of the database.
+    * MEMBER
+    * LIBRARIAN
+    * ADMIN
 
 ---
 
-# What JDBC Is
+## Books
 
-JDBC is **not** MySQL.
-
-JDBC is **not** the database driver.
-
-JDBC is a collection of Java interfaces and classes that define how Java applications communicate with databases.
-
-Examples include:
-
-* Connection
-* Driver
-* Statement
-* PreparedStatement
-* ResultSet
-* DriverManager
-
-These are part of the Java platform.
+* Create Book
+* Update Book
+* Soft Delete Book
+* Get Book By Id
+* Get All Books
 
 ---
 
-# What the MySQL Driver Does
+## Book Copies
 
-The MySQL Connector/J driver contains the real implementation.
+Each physical copy of a book is managed independently.
 
-Its responsibilities include:
+Features
 
-* Understanding the MySQL network protocol
-* Creating TCP connections
-* Authenticating users
-* Sending SQL statements
-* Receiving responses
-* Converting database responses into Java objects
+* Add Book Copy
+* View Book Copies
+* Update Shelf Number
+* Update Status
+* Mark Copy as Lost
 
-Without the driver, JDBC has no way to communicate with MySQL.
+Book Copy Status
 
----
-
-# Lifecycle of a JDBC Request
-
-## Step 1 - Application Requests a Connection
-
-```java
-Connection connection =
-    DriverManager.getConnection(url, username, password);
-```
-
-The application asks JDBC for a database connection.
+* AVAILABLE
+* BORROWED
+* RESERVED
+* LOST
 
 ---
 
-## Step 2 - DriverManager Finds the Correct Driver
+## Loan Management
 
-The JDBC URL determines which driver should handle the request.
+* Borrow Book
+* Return Book
+* View Active Loans
+* View Loan History
 
-Example:
+Loan Status
 
-```
-jdbc:mysql://localhost:3306/library_db
-```
-
-The word **mysql** tells DriverManager to use the MySQL JDBC Driver.
-
-DriverManager itself does not communicate with the database.
-
-It simply locates the correct driver.
+* BORROWED
+* RETURNED
 
 ---
 
-## Step 3 - Database Driver Creates a TCP Connection
+# 🏗 Architecture
 
-The MySQL driver:
+The project follows a layered architecture.
 
-* Opens a TCP socket
-* Connects to localhost:3306
-* Authenticates using username and password
-* Creates a database session
-
-If authentication succeeds, it returns a Connection implementation.
-
----
-
-## Step 4 - Java Receives a Connection
-
-```java
-Connection connection = ...
-```
-
-Notice that Connection is an interface.
-
-The MySQL driver returns its own implementation, but the application only depends on the interface.
-
-This is an example of programming to an interface instead of an implementation.
-
----
-
-## Step 5 - SQL Is Prepared
-
-Example:
-
-```sql
-INSERT INTO users(name,email)
-VALUES (?, ?)
-```
-
-Using placeholders prevents SQL injection and allows parameter binding.
-
----
-
-## Step 6 - Parameters Are Bound
-
-```java
-statement.setString(1, "Santhosh");
-statement.setString(2, "santhosh@gmail.com");
-```
-
-The driver safely inserts the values into the SQL statement.
-
----
-
-## Step 7 - SQL Is Sent to MySQL
-
-The driver converts the request into the MySQL protocol and sends it over the TCP socket.
-
----
-
-## Step 8 - MySQL Executes the Query
-
-The MySQL server:
-
-* Parses the SQL
-* Validates it
-* Executes it
-* Updates or reads data
-* Creates a response
-
----
-
-## Step 9 - Response Travels Back
-
-The response returns through the same path:
-
-```
-MySQL
-    ↓
-MySQL Driver
-    ↓
-JDBC
-    ↓
-Java Application
-```
-
-If it is a SELECT query, the driver converts the response into a ResultSet.
-
-If it is an INSERT or UPDATE, the driver returns the number of affected rows.
-
----
-
-## Step 10 - Connection Is Closed
-
-```java
-connection.close();
-```
-
-Closing releases the database connection and associated resources.
-
----
-
-# Why DriverManager Uses Static Methods
-
-Instead of creating:
-
-```java
-DriverManager manager = new DriverManager();
-```
-
-Java exposes:
-
-```java
-DriverManager.getConnection(...)
-```
-
-because DriverManager acts as a central registry of database drivers.
-
-Only one manager is needed for the JVM.
-
----
-
-# Why Connection Is an Interface
-
-The application depends only on the JDBC contract.
-
-The actual implementation changes depending on the database.
-
-Today:
-
-```
-MySQLConnection
-```
-
-Tomorrow:
-
-```
-PostgreSQLConnection
-```
-
-Your Java code remains unchanged because it only references the Connection interface.
-
----
-
-# What Changes If We Switch Databases?
-
-| Component            | Changes? |
-| -------------------- | -------- |
-| Java Application     | ❌ No     |
-| JDBC API             | ❌ No     |
-| Connection Interface | ❌ No     |
-| JDBC URL             | ✅ Yes    |
-| Database Driver      | ✅ Yes    |
-| Database Server      | ✅ Yes    |
-
-This is one of the biggest advantages of JDBC.
-
----
-
-# Relationship Between JDBC and Hibernate
-
-```
-Application
+```text
+Controller
      │
      ▼
-Hibernate / JPA
+Service
      │
      ▼
-JDBC
-     │
-     ▼
-Database Driver
+Repository
      │
      ▼
 MySQL
 ```
 
-Hibernate does **not** replace JDBC.
+Each layer has a single responsibility.
 
-Hibernate generates SQL and then uses JDBC to execute it.
-
-Even when using Spring Data JPA:
-
-```
-Application
-     │
-     ▼
-Spring Data JPA
-     │
-     ▼
-Hibernate
-     │
-     ▼
-JDBC
-     │
-     ▼
-Database Driver
-     │
-     ▼
-MySQL
-```
-
-JDBC is always part of the communication path.
+* Controller → Handles HTTP requests.
+* Service → Business logic.
+* Repository → Database operations.
+* Entity → Database mapping.
+* DTO → Request/Response objects.
+* Exception → Global exception handling.
+* Security → JWT authentication and authorization.
 
 ---
 
-# Key Takeaways
+# 🛠 Technology Stack
 
-* JDBC is a Java API (contract), not a database.
-* The database driver contains the real implementation.
-* DriverManager selects the correct driver based on the JDBC URL.
-* The driver communicates with MySQL over TCP/IP.
-* The application programs against interfaces such as Connection.
-* Switching databases usually requires changing only the JDBC URL, driver dependency, and database server—not the application's JDBC code.
-* Hibernate and Spring Data JPA are higher-level abstractions that still rely on JDBC underneath.
+| Technology         | Purpose                        |
+| ------------------ | ------------------------------ |
+| Java 21            | Programming Language           |
+| Spring Boot        | Backend Framework              |
+| Spring Security    | Authentication & Authorization |
+| JWT                | Stateless Authentication       |
+| Hibernate / JPA    | ORM                            |
+| MySQL              | Database                       |
+| Maven              | Dependency Management          |
+| Lombok             | Boilerplate Reduction          |
+| Jakarta Validation | Request Validation             |
+
+---
+
+# 📂 Project Structure
+
+```text
+src
+ ├── controller
+ ├── service
+ ├── repository
+ ├── entity
+ ├── dto
+ ├── exception
+ ├── security
+ ├── config
+ └── utils
+```
+
+---
+
+# 🔐 Authentication
+
+The application uses **JWT Authentication**.
+
+Flow
+
+```text
+User Login
+      │
+      ▼
+JWT Generated
+      │
+      ▼
+JWT sent in Authorization Header
+      │
+      ▼
+Spring Security validates token
+      │
+      ▼
+Authenticated User available through SecurityContext
+```
+
+---
+
+# 👥 Roles
+
+## MEMBER
+
+* View Books
+* Borrow Books
+* Return Books
+* View Active Loans
+* View Loan History
+
+---
+
+## LIBRARIAN
+
+Everything a MEMBER can do plus
+
+* Add Books
+* Update Books
+* Delete Books
+* Manage Book Copies
+
+---
+
+## ADMIN
+
+Full access to the system.
+
+---
+
+# 📖 Business Workflow
+
+## Borrow Book
+
+```text
+Member
+    │
+    ▼
+Select Book
+    │
+    ▼
+System finds first AVAILABLE copy
+    │
+    ▼
+Loan Created
+    │
+    ▼
+Book Copy marked BORROWED
+```
+
+---
+
+## Return Book
+
+```text
+Member
+    │
+Returns Physical Book
+    │
+    ▼
+Librarian scans barcode
+    │
+    ▼
+Active Loan located
+    │
+    ▼
+Loan marked RETURNED
+    │
+    ▼
+Book Copy becomes AVAILABLE
+```
+
+---
+
+# 🗄 Database Design
+
+Core Entities
+
+* User
+* Book
+* BookCopy
+* Loan
+
+Relationships
+
+```text
+Book
+ │
+ ├──────────────< BookCopy
+
+User
+ │
+ ├──────────────< Loan
+
+BookCopy
+ │
+ ├──────────────< Loan
+```
+
+---
+
+# ✅ Current Features Completed
+
+* JWT Authentication
+* Role Based Authorization
+* Book Management
+* Book Copy Management
+* Borrow Book
+* Return Book
+* Active Loans
+* Loan History
+* Soft Delete for Books
+* Global Exception Handling
+* Request Validation
+
+---
+
+# 🚧 Planned Features
+
+* Waitlist
+* Fine Calculation
+* Payment Module
+* Loan Renewal
+* Search APIs
+* Pagination
+* Notifications
+* Admin Dashboard
+* Email Integration
+* Audit Logging
+* Docker
+* Flyway Migration
+* Unit Tests
+* Integration Tests
+* Swagger / OpenAPI
+
+---
+
+# ▶ Running the Project
+
+### Clone Repository
+
+```bash
+git clone <repository-url>
+```
+
+### Configure Database
+
+Update:
+
+```properties
+application.properties
+```
+
+with your MySQL configuration.
+
+### Run
+
+```bash
+mvn spring-boot:run
+```
+
+---
+
+# 📸 Screenshots
+
+Screenshots and API examples will be added as the project evolves.
+
+---
+
+# 📚 Learning Objectives
+
+This project is built to practice production-grade backend development concepts including:
+
+* Spring Boot
+* Spring Security
+* JWT Authentication
+* Hibernate/JPA
+* REST API Design
+* Transaction Management
+* Exception Handling
+* RBAC
+* Database Modeling
+* Clean Architecture
+* Real-world Business Logic
+
+---
+
+# 🤝 Contributing
+
+Contributions, suggestions, and improvements are welcome.
+
+Feel free to open an issue or submit a pull request.
+
+---
+
+# ⭐ Support
+
+If you found this project helpful, consider giving it a ⭐ on GitHub.
