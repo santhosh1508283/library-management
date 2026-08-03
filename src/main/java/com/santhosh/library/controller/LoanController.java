@@ -1,9 +1,6 @@
 package com.santhosh.library.controller;
 
-import com.santhosh.library.dto.ActiveLoanResponse;
-import com.santhosh.library.dto.CreateLoanRequest;
-import com.santhosh.library.dto.LoanResponse;
-import com.santhosh.library.dto.ReturnLoanRequest;
+import com.santhosh.library.dto.*;
 import com.santhosh.library.service.LoanService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -39,5 +36,11 @@ public class LoanController {
     @PreAuthorize("hasRole('MEMBER')")
     ResponseEntity<List<ActiveLoanResponse>> getActiveLoans(){
         return ResponseEntity.ok(loanService.getActiveLoans());
+    }
+
+    @GetMapping("/history")
+    @PreAuthorize("hasRole('MEMBER')")
+    public ResponseEntity<List<LoanHistoryResponse>> getLoanHistory() {
+        return ResponseEntity.ok(loanService.getLoanHistory());
     }
 }

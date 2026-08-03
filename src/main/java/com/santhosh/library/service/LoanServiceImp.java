@@ -1,9 +1,6 @@
 package com.santhosh.library.service;
 
-import com.santhosh.library.dto.ActiveLoanResponse;
-import com.santhosh.library.dto.CreateLoanRequest;
-import com.santhosh.library.dto.LoanResponse;
-import com.santhosh.library.dto.ReturnLoanRequest;
+import com.santhosh.library.dto.*;
 import com.santhosh.library.entity.*;
 import com.santhosh.library.exception.BookCopyNotFoundException;
 import com.santhosh.library.exception.BookNotFoundException;
@@ -114,6 +111,40 @@ public class LoanServiceImp implements LoanService{
 
             response.add(activeLoanResponse);
         }
+        return response;
+    }
+
+    @Override
+    public List<LoanHistoryResponse> getLoanHistory() {
+
+        User user = SecurityUtils.getCurrentUser();
+
+        List<Loan> loans = loanRepository.findAllByUserIdOrderByBorrowedAtDesc(user.getId());
+
+        List<LoanHistoryResponse> response = new ArrayList<>();
+
+        for (Loan loan : loans) {
+
+            BookCopy bookCopy = loan.getBookCopy();
+            Book book = bookCopy.getBook();
+
+            LoanHistoryResponse loanHistoryResponse = new LoanHistoryResponse();
+
+            loanHistoryResponse.setLoanId(loan.getId());
+
+            loanHistoryResponse.setBookId(book.getId());
+            loanHistoryResponse.setTitle(book.getTitle());
+            loanHistoryResponse.setBarcode(bookCopy.getBarcode());
+
+            loanHistoryResponse.setBorrowedAt(loan.getBorrowedAt());
+            loanHistoryResponse.setDueDate(loan.getDueDate());
+            loanHistoryResponse.setReturnedAt(loan.getReturnedAt());
+
+            loanHistoryResponse.setStatus(loan.getStatus());
+
+            response.add(loanHistoryResponse);
+        }
+
         return response;
     }
 
