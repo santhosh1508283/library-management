@@ -1,5 +1,6 @@
 package com.santhosh.library.service;
 
+import com.santhosh.library.dto.ActiveLoanResponse;
 import com.santhosh.library.dto.CreateLoanRequest;
 import com.santhosh.library.dto.LoanResponse;
 import com.santhosh.library.dto.ReturnLoanRequest;
@@ -16,6 +17,8 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class LoanServiceImp implements LoanService{
@@ -84,6 +87,34 @@ public class LoanServiceImp implements LoanService{
         bookCopy.setStatus(BookCopyStatus.AVAILABLE);
         loan.setReturnedAt(LocalDateTime.now());
         loan.setStatus(LoanStatus.RETURNED);
+    }
+
+    @Override
+    public List<ActiveLoanResponse> getActiveLoans(){
+
+        User user = SecurityUtils.getCurrentUser();
+        List<Loan> loans = loanRepository.findAllByUserIdAndStatus(user.getId(), LoanStatus.BORROWED);
+
+        List<ActiveLoanResponse> response = new ArrayList<>();
+
+        for(Loan loan : loans){
+            ActiveLoanResponse activeLoanResponse = new ActiveLoanResponse();
+
+            BookCopy bookCopy = loan.getBookCopy();
+            Book book = bookCopy.getBook();
+
+            activeLoanResponse.setLoanId(loan.getId());
+            activeLoanResponse.setBorrowedAt(loan.getBorrowedAt());
+            activeLoanResponse.setDueDate(loan.getDueDate());
+
+            activeLoanResponse.setBookId(book.getId());
+            activeLoanResponse.setTitle(book.getTitle());
+
+            activeLoanResponse.setBarcode(bookCopy.getBarcode());
+
+            response.add(activeLoanResponse);
+        }
+        return response;
     }
 
 }
