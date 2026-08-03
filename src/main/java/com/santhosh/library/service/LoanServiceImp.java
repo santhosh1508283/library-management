@@ -30,6 +30,7 @@ public class LoanServiceImp implements LoanService{
 
     @Override
     @Transactional
+    //Todo add row level lock
     public LoanResponse createLoan(CreateLoanRequest request){
 
         Book book = bookRepository.findByIdAndDeletedFalse(request.getBookId()).orElseThrow(()-> new BookNotFoundException("Book not found"));
