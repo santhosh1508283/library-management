@@ -30,7 +30,7 @@ public class BookCopy {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private BookCopyStatus bookCopyStatus = BookCopyStatus.AVAILABLE;
+    private BookCopyStatus status = BookCopyStatus.AVAILABLE;
 
 //    @CreationTimestamp
     @Column(nullable = false)

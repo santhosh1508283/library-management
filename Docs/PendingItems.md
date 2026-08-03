@@ -459,6 +459,12 @@ After the project is functionally complete, revisit this document and implement 
 
 Once the core features are working, we'll do one dedicated cleanup sprint:
 
+Decide soft delete behavior for Book
+
+Option 1: Deleted books still reserve ISBN (current behavior).
+Option 2: Allow re-adding same ISBN using existsByIsbnAndDeletedFalse(...).
+Option 3 (preferred production approach): If ISBN exists and the book is soft-deleted, restore the existing record instead of creating a new one.
+
 ✅ Generic ApiResponse<T>
 ✅ Global auditing (createdAt, updatedAt) via a base entity
 ✅ Global soft delete support
