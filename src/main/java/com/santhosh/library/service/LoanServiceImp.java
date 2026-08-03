@@ -2,9 +2,11 @@ package com.santhosh.library.service;
 
 import com.santhosh.library.dto.CreateLoanRequest;
 import com.santhosh.library.dto.LoanResponse;
+import com.santhosh.library.dto.ReturnLoanRequest;
 import com.santhosh.library.entity.*;
 import com.santhosh.library.exception.BookCopyNotFoundException;
 import com.santhosh.library.exception.BookNotFoundException;
+import com.santhosh.library.exception.LoanNotFoundException;
 import com.santhosh.library.repository.BookCopyRepository;
 import com.santhosh.library.repository.BookRepository;
 import com.santhosh.library.repository.LoanRepository;
@@ -68,4 +70,20 @@ public class LoanServiceImp implements LoanService{
 
         return response;
     }
+
+    @Override
+    @Transactional
+    public void returnLoan(ReturnLoanRequest request){
+        BookCopy bookCopy = bookCopyRepository.findByBarcode(request.getBarcode()).orElseThrow(() -> new BookCopyNotFoundException("Invalid barcode"));
+        Loan loan = loanRepository.findByBookCopyIdAndStatus(bookCopy.getId(), LoanStatus.BORROWED).orElseThrow(() -> new LoanNotFoundException("No active loan found for this copy"));
+        // TODO:
+        // 1. Calculate overdue fine
+        // 2. Process payment
+        // 3. Notify first waitlisted user
+        // 4. Reserve copy for waitlisted user
+        bookCopy.setStatus(BookCopyStatus.AVAILABLE);
+        loan.setReturnedAt(LocalDateTime.now());
+        loan.setStatus(LoanStatus.RETURNED);
+    }
+
 }

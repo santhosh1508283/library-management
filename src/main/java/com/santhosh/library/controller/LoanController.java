@@ -2,6 +2,7 @@ package com.santhosh.library.controller;
 
 import com.santhosh.library.dto.CreateLoanRequest;
 import com.santhosh.library.dto.LoanResponse;
+import com.santhosh.library.dto.ReturnLoanRequest;
 import com.santhosh.library.service.LoanService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -25,5 +26,12 @@ public class LoanController {
     @PreAuthorize("hasRole('MEMBER')")
     public ResponseEntity<LoanResponse> createLoan(@RequestBody @Valid CreateLoanRequest request){
         return ResponseEntity.status(HttpStatus.CREATED).body(loanService.createLoan(request));
+    }
+
+    @PostMapping("/return")
+    @PreAuthorize("hasAnyRole('LIBRARIAN', 'ADMIN')")
+    ResponseEntity<Void> returnBook(@RequestBody @Valid ReturnLoanRequest request){
+        loanService.returnLoan(request);
+        return ResponseEntity.noContent().build();
     }
 }
