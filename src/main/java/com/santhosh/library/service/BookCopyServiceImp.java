@@ -1,13 +1,14 @@
 package com.santhosh.library.service;
 
 import com.santhosh.library.dto.BookCopyResponse;
-import com.santhosh.library.dto.BookResponse;
 import com.santhosh.library.dto.CreateBookCopyRequest;
+import com.santhosh.library.dto.UpdateBookCopyShelfRequest;
+import com.santhosh.library.dto.UpdateBookCopyStatusRequest;
 import com.santhosh.library.entity.Book;
 import com.santhosh.library.entity.BookCopy;
 import com.santhosh.library.entity.BookCopyStatus;
-import com.santhosh.library.exception.BookAlreadyExistsException;
 import com.santhosh.library.exception.BookCopyAlreadyExistsException;
+import com.santhosh.library.exception.BookCopyNotFoundException;
 import com.santhosh.library.exception.BookNotFoundException;
 import com.santhosh.library.repository.BookCopyRepository;
 import com.santhosh.library.repository.BookRepository;
@@ -80,5 +81,41 @@ public class BookCopyServiceImp implements BookCopyService {
         }
 
         return response;
+    }
+
+    @Override
+    public BookCopyResponse getBookCopy(Long id){
+        BookCopy bookCopy = bookCopyRepository.findById(id).orElseThrow(() -> new BookCopyNotFoundException("Book copy not found"));
+        BookCopyResponse response = new BookCopyResponse();
+
+        response.setId(bookCopy.getId());
+        response.setBookId(bookCopy.getBook().getId());
+        response.setTitle(bookCopy.getBook().getTitle());
+        response.setBarcode(bookCopy.getBarcode());
+        response.setShelfNumber(bookCopy.getShelfNumber());
+        response.setStatus(bookCopy.getStatus());
+
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public void updateBookCopyShelf(UpdateBookCopyShelfRequest request, Long id){
+        BookCopy bookCopy = bookCopyRepository.findById(id).orElseThrow(() -> new BookCopyNotFoundException("Book copy not found"));
+        bookCopy.setShelfNumber(request.getShelfNumber());
+    }
+
+    @Override
+    @Transactional
+    public void updateBookCopyStatus(UpdateBookCopyStatusRequest request, Long id){
+        BookCopy bookCopy = bookCopyRepository.findById(id).orElseThrow(() -> new BookCopyNotFoundException("Book copy not found"));
+        bookCopy.setStatus(request.getStatus());
+    }
+
+    @Override
+    @Transactional
+    public void deleteBookCopy(Long id){
+        BookCopy bookCopy = bookCopyRepository.findById(id).orElseThrow(() -> new BookCopyNotFoundException("Book copy not found"));
+        bookCopy.setStatus(BookCopyStatus.LOST);
     }
 }
