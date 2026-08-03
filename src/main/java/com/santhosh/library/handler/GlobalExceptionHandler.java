@@ -86,4 +86,14 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
+    @ExceptionHandler(BookCopyAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleBookCopyAlreadyExistsException(BookCopyAlreadyExistsException ex){
+        ErrorResponse response = new ErrorResponse();
+        response.setMessage(ex.getMessage());
+        response.setTimestamp(LocalDateTime.now());
+        response.setError(HttpStatus.CONFLICT.getReasonPhrase());
+        response.setStatus(HttpStatus.CONFLICT.value());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
 }
