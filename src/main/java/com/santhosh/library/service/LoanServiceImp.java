@@ -1,10 +1,10 @@
 package com.santhosh.library.service;
 
-import com.santhosh.library.dto.CreateLoanRequest;
-import com.santhosh.library.dto.LoanResponse;
+import com.santhosh.library.dto.*;
 import com.santhosh.library.entity.*;
 import com.santhosh.library.exception.BookCopyNotFoundException;
 import com.santhosh.library.exception.BookNotFoundException;
+import com.santhosh.library.exception.LoanNotFoundException;
 import com.santhosh.library.repository.BookCopyRepository;
 import com.santhosh.library.repository.BookRepository;
 import com.santhosh.library.repository.LoanRepository;
@@ -14,6 +14,8 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class LoanServiceImp implements LoanService{
@@ -30,6 +32,7 @@ public class LoanServiceImp implements LoanService{
 
     @Override
     @Transactional
+    //Todo add row level lock
     public LoanResponse createLoan(CreateLoanRequest request){
 
         Book book = bookRepository.findByIdAndDeletedFalse(request.getBookId()).orElseThrow(()-> new BookNotFoundException("Book not found"));
@@ -67,4 +70,82 @@ public class LoanServiceImp implements LoanService{
 
         return response;
     }
+
+    @Override
+    @Transactional
+    public void returnLoan(ReturnLoanRequest request){
+        BookCopy bookCopy = bookCopyRepository.findByBarcode(request.getBarcode()).orElseThrow(() -> new BookCopyNotFoundException("Invalid barcode"));
+        Loan loan = loanRepository.findByBookCopyIdAndStatus(bookCopy.getId(), LoanStatus.BORROWED).orElseThrow(() -> new LoanNotFoundException("No active loan found for this copy"));
+        // TODO:
+        // 1. Calculate overdue fine
+        // 2. Process payment
+        // 3. Notify first waitlisted user
+        // 4. Reserve copy for waitlisted user
+        bookCopy.setStatus(BookCopyStatus.AVAILABLE);
+        loan.setReturnedAt(LocalDateTime.now());
+        loan.setStatus(LoanStatus.RETURNED);
+    }
+
+    @Override
+    public List<ActiveLoanResponse> getActiveLoans(){
+
+        User user = SecurityUtils.getCurrentUser();
+        List<Loan> loans = loanRepository.findAllByUserIdAndStatus(user.getId(), LoanStatus.BORROWED);
+
+        List<ActiveLoanResponse> response = new ArrayList<>();
+
+        for(Loan loan : loans){
+            ActiveLoanResponse activeLoanResponse = new ActiveLoanResponse();
+
+            BookCopy bookCopy = loan.getBookCopy();
+            Book book = bookCopy.getBook();
+
+            activeLoanResponse.setLoanId(loan.getId());
+            activeLoanResponse.setBorrowedAt(loan.getBorrowedAt());
+            activeLoanResponse.setDueDate(loan.getDueDate());
+
+            activeLoanResponse.setBookId(book.getId());
+            activeLoanResponse.setTitle(book.getTitle());
+
+            activeLoanResponse.setBarcode(bookCopy.getBarcode());
+
+            response.add(activeLoanResponse);
+        }
+        return response;
+    }
+
+    @Override
+    public List<LoanHistoryResponse> getLoanHistory() {
+
+        User user = SecurityUtils.getCurrentUser();
+
+        List<Loan> loans = loanRepository.findAllByUserIdOrderByBorrowedAtDesc(user.getId());
+
+        List<LoanHistoryResponse> response = new ArrayList<>();
+
+        for (Loan loan : loans) {
+
+            BookCopy bookCopy = loan.getBookCopy();
+            Book book = bookCopy.getBook();
+
+            LoanHistoryResponse loanHistoryResponse = new LoanHistoryResponse();
+
+            loanHistoryResponse.setLoanId(loan.getId());
+
+            loanHistoryResponse.setBookId(book.getId());
+            loanHistoryResponse.setTitle(book.getTitle());
+            loanHistoryResponse.setBarcode(bookCopy.getBarcode());
+
+            loanHistoryResponse.setBorrowedAt(loan.getBorrowedAt());
+            loanHistoryResponse.setDueDate(loan.getDueDate());
+            loanHistoryResponse.setReturnedAt(loan.getReturnedAt());
+
+            loanHistoryResponse.setStatus(loan.getStatus());
+
+            response.add(loanHistoryResponse);
+        }
+
+        return response;
+    }
+
 }
