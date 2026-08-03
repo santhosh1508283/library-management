@@ -15,4 +15,5 @@ public interface BookCopyService {
     void updateBookCopyShelf(UpdateBookCopyShelfRequest request, Long id);
     void updateBookCopyStatus(UpdateBookCopyStatusRequest request, Long id);
     void deleteBookCopy(Long id);
+
 }
