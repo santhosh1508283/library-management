@@ -8,6 +8,7 @@ import com.santhosh.library.entity.Waitlist;
 import com.santhosh.library.entity.WaitlistStatus;
 import com.santhosh.library.exception.BookNotFoundException;
 import com.santhosh.library.exception.WaitlistAlreadyExistsException;
+import com.santhosh.library.exception.WaitlistNotFoundException;
 import com.santhosh.library.repository.BookRepository;
 import com.santhosh.library.repository.WaitlistRepository;
 import com.santhosh.library.utils.SecurityUtils;
@@ -69,5 +70,21 @@ public class WaitlistServiceImp implements WaitlistService {
             responses.add(waitlistResponse);
         }
         return responses;
+    }
+
+    @Transactional
+    public void cancelWaitlist(Long waitlistId) {
+        User user = SecurityUtils.getCurrentUser();
+
+        Waitlist waitlist = waitlistRepository
+                .findByIdAndUserIdAndStatus(
+                        waitlistId,
+                        user.getId(),
+                        WaitlistStatus.WAITING
+                )
+                .orElseThrow(() ->
+                        new WaitlistNotFoundException("Waitlist entry not found"));
+
+        waitlist.setStatus(WaitlistStatus.CANCELLED);
     }
 }

@@ -129,4 +129,14 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
+    @ExceptionHandler(WaitlistNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleWaitlistNotFoundException(WaitlistNotFoundException ex){
+        ErrorResponse response = new ErrorResponse();
+        response.setMessage(ex.getMessage());
+        response.setTimestamp(LocalDateTime.now());
+        response.setError(HttpStatus.NOT_FOUND.getReasonPhrase());
+        response.setStatus(HttpStatus.NOT_FOUND.value());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
 }

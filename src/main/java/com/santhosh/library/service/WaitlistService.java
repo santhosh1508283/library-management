@@ -9,4 +9,5 @@ public interface WaitlistService {
 
     void joinWaitlist(JoinWaitlistRequest request);
     List<WaitlistResponse> getWaitlist();
+    void cancelWaitlist(Long waitlistId);
 }

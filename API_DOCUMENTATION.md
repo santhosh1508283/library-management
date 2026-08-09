@@ -584,9 +584,213 @@ Response
 
 ---
 
+# Waitlist APIs
+
+## 1. Join Waitlist
+
+Allows a member to join the waitlist for a book when no available copies exist.
+
+### Endpoint
+
+```http
+POST /api/v1/waitlist
+```
+
+### Authorization
+
+```text
+MEMBER
+```
+
+### Request Body
+
+```json
+{
+  "bookId": 123
+}
+```
+
+### Response
+
+```http
+204 No Content
+```
+
+### Business Rules
+
+* The authenticated user is obtained from the JWT/security context.
+* The user cannot join the same book's waitlist more than once while the existing entry is `WAITING`.
+* Deleted books cannot be added to the waitlist.
+* A previous `CANCELLED`, `EXPIRED`, or `FULFILLED` entry does not prevent the user from joining again.
+* A successful request creates a new waitlist entry with status `WAITING`.
+
+### Possible Errors
+
+| Status | Error                   | Description                             |
+| ------ | ----------------------- | --------------------------------------- |
+| `404`  | Book Not Found          | Book does not exist or has been deleted |
+| `409`  | Waitlist Already Exists | User is already waiting for the book    |
+
+---
+
+## 2. Get My Waitlist
+
+Returns all waitlist entries belonging to the currently authenticated member.
+
+### Endpoint
+
+```http
+GET /api/v1/waitlist/me
+```
+
+### Authorization
+
+```text
+MEMBER
+```
+
+### Request
+
+No request body or query parameters are required.
+
+The authenticated user is determined from the JWT/security context.
+
+### Response
+
+```http
+200 OK
+```
+
+```json
+[
+  {
+    "waitlistId": 12,
+    "bookId": 5,
+    "title": "Clean Code",
+    "status": "WAITING",
+    "joinedAt": "2026-08-09T14:30:00"
+  },
+  {
+    "waitlistId": 8,
+    "bookId": 2,
+    "title": "Effective Java",
+    "status": "FULFILLED",
+    "joinedAt": "2026-08-07T10:15:00"
+  },
+  {
+    "waitlistId": 4,
+    "bookId": 9,
+    "title": "Design Patterns",
+    "status": "CANCELLED",
+    "joinedAt": "2026-08-01T09:20:00"
+  }
+]
+```
+
+### Ordering
+
+Entries are returned with the **most recently joined entries first**, based on `createdAt DESC`.
+
+### Business Rules
+
+* Only the authenticated user's waitlist entries are returned.
+* All statuses are included:
+
+    * `WAITING`
+    * `NOTIFIED`
+    * `FULFILLED`
+    * `EXPIRED`
+    * `CANCELLED`
+* Pagination and filtering can be added later.
+
+---
+
+## 3. Cancel Waitlist
+
+Allows a member to cancel their own active waitlist entry.
+
+### Endpoint
+
+```http
+DELETE /api/v1/waitlist/{waitlistId}
+```
+
+### Authorization
+
+```text
+MEMBER
+```
+
+### Request
+
+No request body is required.
+
+The waitlist ID is provided as a path variable.
+
+```http
+DELETE /api/v1/waitlist/12
+```
+
+### Response
+
+```http
+204 No Content
+```
+
+### Business Rules
+
+* A member can cancel only their own waitlist entry.
+* The waitlist entry must currently have status `WAITING`.
+* The entry is not physically deleted from the database.
+* Instead, its status is changed to `CANCELLED`.
+* This preserves waitlist history.
+
+### Possible Errors
+
+| Status | Error              | Description                                                                      |
+| ------ | ------------------ | -------------------------------------------------------------------------------- |
+| `404`  | Waitlist Not Found | Entry does not exist, does not belong to the user, or is not currently `WAITING` |
+
+---
+
+## Waitlist Status Lifecycle
+
+```text
+WAITING
+   │
+   ├──→ CANCELLED
+   │
+   ├──→ NOTIFIED
+   │       │
+   │       ├──→ FULFILLED
+   │       │
+   │       └──→ EXPIRED
+   │
+   └──→ FULFILLED
+```
+
+### Current V1 Scope
+
+The current implementation supports:
+
+* Joining a waitlist
+* Viewing personal waitlist history
+* Cancelling a waiting entry
+* Maintaining waitlist status history
+
+Future enhancements can include:
+
+* Automatic notification when a copy becomes available
+* Reservation windows
+* Email/push notifications
+* Automatic expiration
+* Waitlist-to-loan conversion
+* Pagination and filtering
+
+
 # Future Enhancements
 
-* Waitlist Management
+* Waitlist Management - v2
 * Loan Renewal
 * Fine Calculation
 * Payment Integration

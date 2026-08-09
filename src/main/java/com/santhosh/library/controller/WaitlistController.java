@@ -33,4 +33,11 @@ public class WaitlistController {
         return ResponseEntity.ok().body(waitlistService.getWaitlist());
     }
 
+    @DeleteMapping("/{waitlistId}")
+    @PreAuthorize("hasRole('MEMBER')")
+    public ResponseEntity<Void> cancelWaitlist(@PathVariable Long waitlistId) {
+        waitlistService.cancelWaitlist(waitlistId);
+        return ResponseEntity.noContent().build();
+    }
+
 }
