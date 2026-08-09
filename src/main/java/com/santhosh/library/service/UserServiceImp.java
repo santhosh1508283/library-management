@@ -5,7 +5,6 @@ import com.santhosh.library.dto.LoginRequest;
 import com.santhosh.library.dto.RefreshTokenRequest;
 import com.santhosh.library.dto.SignupRequest;
 import com.santhosh.library.entity.RefreshToken;
-import com.santhosh.library.entity.Role;
 import com.santhosh.library.entity.User;
 import com.santhosh.library.exception.EmailAlreadyExistsException;
 import com.santhosh.library.exception.InvalidCredentialsException;
