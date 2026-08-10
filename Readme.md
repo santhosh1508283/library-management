@@ -1,351 +1,218 @@
 # 📚 Library Management System
 
-A production-oriented **Library Management System** built using **Java**, **Spring Boot**, **Spring Security**, **JWT Authentication**, **Hibernate/JPA**, and **MySQL**.
+A backend REST API for managing a library's books, physical book copies, member loans, and waitlists — built with **Spring Boot 4**, **Spring Security (JWT)**, and **Spring Data JPA (MySQL)**.
 
-The project is designed using real-world backend engineering practices rather than simple CRUD operations. It models how an actual library operates by separating **Books**, **Book Copies**, **Loans**, authentication, authorization, and future extensibility such as waitlists, payments, and notifications.
-
----
-
-# 🚀 Features
-
-## Authentication & Authorization
-
-* JWT based authentication
-* Spring Security
-* Role Based Access Control (RBAC)
-* Roles
-
-    * MEMBER
-    * LIBRARIAN
-    * ADMIN
+It supports three roles (`MEMBER`, `LIBRARIAN`, `ADMIN`), each with a distinct set of permissions, and models the real-world flow of a library: a **Book** (the title/catalog entry) can have many **Book Copies** (physical items with barcodes), which members **borrow** and **return** as **Loans**, and can **join a waitlist** for when no copies are available.
 
 ---
 
-## Books
+## ✨ Features
 
-* Create Book
-* Update Book
-* Soft Delete Book
-* Get Book By Id
-* Get All Books
-
----
-
-## Book Copies
-
-Each physical copy of a book is managed independently.
-
-Features
-
-* Add Book Copy
-* View Book Copies
-* Update Shelf Number
-* Update Status
-* Mark Copy as Lost
-
-Book Copy Status
-
-* AVAILABLE
-* BORROWED
-* RESERVED
-* LOST
+- **JWT-based authentication** — signup, login, short-lived access tokens + long-lived refresh tokens, and logout (refresh token revocation)
+- **Role-based access control** — `MEMBER`, `LIBRARIAN`, `ADMIN`, enforced with Spring Security method security (`@PreAuthorize`)
+- **Book catalog management** — create, update, list, fetch, and soft-delete books
+- **Book copy management** — track individual physical copies (barcode, shelf location, status) per book
+- **Loan lifecycle** — borrow, return, view active loans, and view loan history
+- **Waitlist** — join, view, and cancel a waitlist entry when a book has no available copies
+- **Admin controls** — promote/change a user's role
+- **Centralized error handling** — consistent JSON error shape across the API, including field-level validation errors
+- **Soft deletes** — books and users are never hard-deleted; they're flagged so history stays intact
 
 ---
 
-## Loan Management
+## 🏗️ Tech Stack
 
-* Borrow Book
-* Return Book
-* View Active Loans
-* View Loan History
-
-Loan Status
-
-* BORROWED
-* RETURNED
+| Layer | Technology |
+|---|---|
+| Language | Java 17+ |
+| Framework | Spring Boot 4.1.0 |
+| Security | Spring Security + JJWT 0.12.7 (JWT) |
+| Persistence | Spring Data JPA / Hibernate |
+| Database | MySQL |
+| Validation | Jakarta Bean Validation (`spring-boot-starter-validation`) |
+| Build Tool | Maven (with Maven Wrapper) |
+| Boilerplate reduction | Lombok |
 
 ---
 
-# 🏗 Architecture
+## 🗂️ Project Structure
 
-The project follows a layered architecture.
-
-```text
-Controller
-     │
-     ▼
-Service
-     │
-     ▼
-Repository
-     │
-     ▼
-MySQL
 ```
-
-Each layer has a single responsibility.
-
-* Controller → Handles HTTP requests.
-* Service → Business logic.
-* Repository → Database operations.
-* Entity → Database mapping.
-* DTO → Request/Response objects.
-* Exception → Global exception handling.
-* Security → JWT authentication and authorization.
-
----
-
-# 🛠 Technology Stack
-
-| Technology         | Purpose                        |
-| ------------------ | ------------------------------ |
-| Java 21            | Programming Language           |
-| Spring Boot        | Backend Framework              |
-| Spring Security    | Authentication & Authorization |
-| JWT                | Stateless Authentication       |
-| Hibernate / JPA    | ORM                            |
-| MySQL              | Database                       |
-| Maven              | Dependency Management          |
-| Lombok             | Boilerplate Reduction          |
-| Jakarta Validation | Request Validation             |
-
----
-
-# 📂 Project Structure
-
-```text
-src
- ├── controller
- ├── service
- ├── repository
- ├── entity
- ├── dto
- ├── exception
- ├── security
- ├── config
- └── utils
+library-management/
+├── src/main/java/com/santhosh/library/
+│   ├── controller/       # REST controllers (Auth, Book, BookCopy, Loan, Waitlist, Admin)
+│   ├── service/          # Interfaces + implementations holding business logic
+│   ├── repository/       # Spring Data JPA repositories
+│   ├── entity/           # JPA entities and enums (Role, LoanStatus, etc.)
+│   ├── dto/               # Request/response DTOs
+│   ├── exception/        # Custom domain exceptions
+│   ├── handler/           # @RestControllerAdvice global exception handler
+│   ├── security/         # JwtService, JwtAuthenticationFilter
+│   ├── config/            # SecurityConfig (filter chain, password encoder)
+│   └── utils/              # SecurityUtils (current authenticated user helper)
+├── src/main/resources/
+│   └── application.properties
+├── Docs/                  # Learning notes (JDBC, JPA/Hibernate, Spring IoC, AOP, Reflection)
+├── API_DOCUMENTATION.md   # Full endpoint-by-endpoint API reference
+└── pom.xml
 ```
 
 ---
 
-# 🔐 Authentication
+## 👥 Roles & Permissions
 
-The application uses **JWT Authentication**.
+| Role | Description |
+|---|---|
+| `MEMBER` | Default role on signup. Can browse books, borrow/return their own books (borrow only — return is done by staff), view their own active loans and loan history, and join/view/cancel their own waitlist entries. |
+| `LIBRARIAN` | Manages the catalog and physical inventory: create/update/soft-delete books, create/update/delete book copies, and process book returns. |
+| `ADMIN` | Everything a `LIBRARIAN` can do, plus user administration (changing a user's role). |
 
-Flow
-
-```text
-User Login
-      │
-      ▼
-JWT Generated
-      │
-      ▼
-JWT sent in Authorization Header
-      │
-      ▼
-Spring Security validates token
-      │
-      ▼
-Authenticated User available through SecurityContext
-```
+Every new user signs up as `MEMBER`. Role upgrades (e.g. to `LIBRARIAN` or `ADMIN`) are done via the admin **Update Role** endpoint — see [`API_DOCUMENTATION.md`](./API_DOCUMENTATION.md) for details.
 
 ---
 
-# 👥 Roles
+## 🔑 Authentication Model
 
-## MEMBER
-
-* View Books
-* Borrow Books
-* Return Books
-* View Active Loans
-* View Loan History
-
----
-
-## LIBRARIAN
-
-Everything a MEMBER can do plus
-
-* Add Books
-* Update Books
-* Delete Books
-* Manage Book Copies
+- On **signup** or **login**, the API returns an **access token** (short-lived, `15 min`) and a **refresh token** (long-lived, `7 days`).
+- Send the access token on every protected request:
+  ```http
+  Authorization: Bearer <accessToken>
+  ```
+- When the access token expires, call `POST /api/v1/auth/refresh` with the refresh token to get a new access token without logging in again.
+- `POST /api/v1/auth/logout` revokes a refresh token so it can no longer be used to mint new access tokens.
+- All `/api/v1/auth/**` endpoints are public; every other endpoint requires a valid access token.
 
 ---
 
-## ADMIN
+## ⚙️ Getting Started
 
-Full access to the system.
+### Prerequisites
 
----
+- Java 17 or higher
+- Maven (or use the bundled `./mvnw` wrapper)
+- A running MySQL instance
 
-# 📖 Business Workflow
-
-## Borrow Book
-
-```text
-Member
-    │
-    ▼
-Select Book
-    │
-    ▼
-System finds first AVAILABLE copy
-    │
-    ▼
-Loan Created
-    │
-    ▼
-Book Copy marked BORROWED
-```
-
----
-
-## Return Book
-
-```text
-Member
-    │
-Returns Physical Book
-    │
-    ▼
-Librarian scans barcode
-    │
-    ▼
-Active Loan located
-    │
-    ▼
-Loan marked RETURNED
-    │
-    ▼
-Book Copy becomes AVAILABLE
-```
-
----
-
-# 🗄 Database Design
-
-Core Entities
-
-* User
-* Book
-* BookCopy
-* Loan
-
-Relationships
-
-```text
-Book
- │
- ├──────────────< BookCopy
-
-User
- │
- ├──────────────< Loan
-
-BookCopy
- │
- ├──────────────< Loan
-```
-
----
-
-# ✅ Current Features Completed
-
-* JWT Authentication
-* Role Based Authorization
-* Book Management
-* Book Copy Management
-* Borrow Book
-* Return Book
-* Active Loans
-* Loan History
-* Soft Delete for Books
-* Global Exception Handling
-* Request Validation
-
----
-
-# 🚧 Planned Features
-
-* Waitlist
-* Fine Calculation
-* Payment Module
-* Loan Renewal
-* Search APIs
-* Pagination
-* Notifications
-* Admin Dashboard
-* Email Integration
-* Audit Logging
-* Docker
-* Flyway Migration
-* Unit Tests
-* Integration Tests
-* Swagger / OpenAPI
-
----
-
-# ▶ Running the Project
-
-### Clone Repository
+### 1. Clone the repository
 
 ```bash
 git clone <repository-url>
+cd library-management
 ```
 
-### Configure Database
+### 2. Configure environment variables
 
-Update:
+The app reads its datasource and JWT config from environment variables (see `src/main/resources/application.properties`):
 
-```properties
-application.properties
-```
+| Variable | Description |
+|---|---|
+| `DB_URL` | JDBC URL, e.g. `jdbc:mysql://localhost:3306/library_db` |
+| `DB_USERNAME` | MySQL username |
+| `DB_PASSWORD` | MySQL password |
+| `JWT_SECRET` | Secret key used to sign JWTs |
 
-with your MySQL configuration.
+Create a MySQL database matching your `DB_URL` (e.g. `library_db`) — the schema is auto-created/updated by Hibernate (`spring.jpa.hibernate.ddl-auto=update`).
 
-### Run
+Example (Linux/macOS):
 
 ```bash
-mvn spring-boot:run
+export DB_URL=jdbc:mysql://localhost:3306/library_db
+export DB_USERNAME=root
+export DB_PASSWORD=yourpassword
+export JWT_SECRET=your-256-bit-secret
+```
+
+### 3. Run the application
+
+```bash
+./mvnw spring-boot:run
+```
+
+The API will start on:
+
+```
+http://localhost:8080
+```
+
+### 4. Try it out
+
+```bash
+# Sign up
+curl -X POST http://localhost:8080/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"name":"John","email":"john@example.com","password":"password123"}'
+
+# Use the returned accessToken on protected endpoints
+curl http://localhost:8080/api/v1/books \
+  -H "Authorization: Bearer <accessToken>"
 ```
 
 ---
 
-# 📸 Screenshots
+## 📖 API Documentation
 
-Screenshots and API examples will be added as the project evolves.
+Full endpoint-by-endpoint documentation — including request/response bodies, required roles, and error cases — lives in **[`API_DOCUMENTATION.md`](./API_DOCUMENTATION.md)**.
 
----
+Quick summary of resource groups:
 
-# 📚 Learning Objectives
-
-This project is built to practice production-grade backend development concepts including:
-
-* Spring Boot
-* Spring Security
-* JWT Authentication
-* Hibernate/JPA
-* REST API Design
-* Transaction Management
-* Exception Handling
-* RBAC
-* Database Modeling
-* Clean Architecture
-* Real-world Business Logic
+| Group | Base Path | Purpose |
+|---|---|---|
+| Auth | `/api/v1/auth` | Signup, login, refresh, logout |
+| Books | `/api/v1/books` | Catalog CRUD |
+| Book Copies | `/api/v1/books/{bookId}/copies`, `/api/v1/book-copies` | Physical inventory management |
+| Loans | `/api/v1/loans` | Borrow, return, active loans, history |
+| Waitlist | `/api/v1/waitlist` | Join/view/cancel waitlist for a book |
+| Admin | `/api/v1/admin` | Role management |
 
 ---
 
-# 🤝 Contributing
+## ❗ Error Handling
 
-Contributions, suggestions, and improvements are welcome.
+All errors return a consistent JSON shape:
 
-Feel free to open an issue or submit a pull request.
+```json
+{
+  "timestamp": "2026-08-03T10:15:20",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Book not found"
+}
+```
+
+Validation failures additionally include a field-level `errors` map:
+
+```json
+{
+  "timestamp": "2026-08-03T10:15:20",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation Failed",
+  "errors": {
+    "email": "Invalid email",
+    "password": "Password must be at least 6 characters"
+  }
+}
+```
+
+See [`API_DOCUMENTATION.md`](./API_DOCUMENTATION.md) for the full list of status codes and error cases per endpoint.
 
 ---
 
-# ⭐ Support
+## 🚧 Future Scope
 
-If you found this project helpful, consider giving it a ⭐ on GitHub.
+- Waitlist Management — v2 (auto-notify on availability, reservation windows, auto-expiration, waitlist-to-loan conversion)
+- Loan Renewal
+- Fine Calculation
+- Payment Integration
+- Email Notifications
+- Search APIs
+- Pagination
+- Admin Dashboard
+- Swagger / OpenAPI
+- Docker Support
+- Unit & Integration Tests
+
+---
+
+## 📄 License
+
+Add your license of choice here.
