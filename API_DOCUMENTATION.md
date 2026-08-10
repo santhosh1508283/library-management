@@ -1,120 +1,270 @@
-# 📖 API Documentation
+# 📖 API Documentation — Library Management System
 
-# Base URL
+## Base URL
 
-```text
+```
 http://localhost:8080/api/v1
 ```
 
----
+## Authentication
 
-# Authentication
-
-JWT Token is required for all protected endpoints.
-
-Header
+Every endpoint except `/api/v1/auth/**` requires a JWT **access token** sent as a Bearer token:
 
 ```http
-Authorization: Bearer <JWT_TOKEN>
+Authorization: Bearer <accessToken>
+```
+
+Access tokens expire after **15 minutes**. Use the refresh endpoint to get a new one without re-logging in. Refresh tokens expire after **7 days**.
+
+## Roles
+
+| Role | Description |
+|---|---|
+| `MEMBER` | Default role assigned on signup. Can browse the catalog, borrow books, view their own active loans/history, and manage their own waitlist entries. |
+| `LIBRARIAN` | Manages the book catalog and physical inventory, and processes book returns. |
+| `ADMIN` | Has all `LIBRARIAN` permissions, plus the ability to change any user's role. |
+
+Each endpoint below lists exactly which role(s) may call it. "Authenticated" means any logged-in user regardless of role.
+
+## HTTP Status Codes Used
+
+| Code | Meaning |
+|---|---|
+| 200 | Success |
+| 201 | Resource Created |
+| 204 | Success, No Content |
+| 400 | Bad Request (validation failure) |
+| 401 | Unauthorized (missing/invalid/expired token, bad credentials) |
+| 403 | Forbidden (authenticated, but role not permitted) |
+| 404 | Resource Not Found |
+| 409 | Conflict (duplicate resource / state conflict) |
+| 500 | Internal Server Error |
+
+## Standard Error Response
+
+```json
+{
+  "timestamp": "2026-08-03T10:15:20",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Book not found"
+}
+```
+
+Validation errors (HTTP 400) additionally include an `errors` map of field → message:
+
+```json
+{
+  "timestamp": "2026-08-03T10:15:20",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation Failed",
+  "errors": {
+    "email": "Invalid email",
+    "password": "Password must be at least 6 characters"
+  }
+}
 ```
 
 ---
 
-# Roles
+# 1. Auth APIs
 
-| Role      | Description                                              |
-| --------- | -------------------------------------------------------- |
-| MEMBER    | Can borrow books, return books, and view their own loans |
-| LIBRARIAN | Manages books, book copies, and issues/accepts returns   |
-| ADMIN     | Full system access                                       |
+Base path: `/api/v1/auth` — all endpoints in this group are **public** (no token required).
 
----
+## 1.1 Sign Up
 
-# HTTP Status Codes
-
-| Code | Meaning               |
-| ---- | --------------------- |
-| 200  | Success               |
-| 201  | Resource Created      |
-| 204  | Success (No Content)  |
-| 400  | Bad Request           |
-| 401  | Unauthorized          |
-| 403  | Forbidden             |
-| 404  | Resource Not Found    |
-| 409  | Conflict              |
-| 500  | Internal Server Error |
-
----
-
-# Authentication APIs
-
-## Login
-
-**POST**
+Creates a new user account with the default role `MEMBER`, and immediately logs them in (returns tokens).
 
 ```http
-/api/v1/auth/login
+POST /api/v1/auth/signup
 ```
 
-Request
+**Authorization:** Public
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `name` | string | required (not blank) |
+| `email` | string | required, must be a valid email |
+| `password` | string | required, minimum 6 characters |
+
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+**Response — `201 Created`**
+
+```json
+{
+  "accessToken": "<jwt>",
+  "refreshToken": "<jwt>",
+  "email": "john@example.com",
+  "name": "John Doe",
+  "role": "MEMBER"
+}
+```
+
+**What happens:**
+- Rejects the request if the email is already registered.
+- Password is hashed with BCrypt before being stored.
+- New user is always created with role `MEMBER`.
+
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing/invalid `name`, `email`, or `password` |
+| `409` | Email already registered |
+
+---
+
+## 1.2 Login
+
+```http
+POST /api/v1/auth/login
+```
+
+**Authorization:** Public
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `email` | string | required, valid email |
+| `password` | string | required, minimum 6 characters |
 
 ```json
 {
   "email": "john@example.com",
-  "password": "password"
+  "password": "password123"
 }
 ```
 
-Response
+**Response — `200 OK`**
 
 ```json
 {
-  "token": "<JWT_TOKEN>"
-}
-```
-
----
-
-## Register
-
-**POST**
-
-```http
-/api/v1/auth/register
-```
-
-Request
-
-```json
-{
-  "name": "John",
+  "accessToken": "<jwt>",
+  "refreshToken": "<jwt>",
   "email": "john@example.com",
-  "password": "password"
+  "name": "John Doe",
+  "role": "MEMBER"
 }
 ```
 
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing/invalid `email` or `password` format |
+| `401` | Email not found, or password does not match |
+
 ---
 
-# Book APIs
+## 1.3 Refresh Token
 
----
-
-## Create Book
-
-**POST**
+Issues a new access token for a still-valid, non-revoked refresh token.
 
 ```http
-/api/v1/books
+POST /api/v1/auth/refresh
 ```
 
-Authorization
+**Authorization:** Public (requires a valid refresh token in the body)
 
-```text
-LIBRARIAN
-ADMIN
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `refreshToken` | string | required |
+
+```json
+{
+  "refreshToken": "<refreshToken>"
+}
 ```
 
-Request
+**Response — `200 OK`**
+
+```json
+{
+  "accessToken": "<new-jwt>",
+  "refreshToken": "<same-refreshToken>",
+  "email": "john@example.com",
+  "name": "John Doe",
+  "role": "MEMBER"
+}
+```
+
+**What happens:** validates the refresh token exists, is not revoked, and has not expired; issues a new access token; updates the token's `lastUsedAt` timestamp. The same refresh token is returned (it is not rotated).
+
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing `refreshToken` |
+| `401` | Refresh token not found, revoked, or expired/invalid |
+
+---
+
+## 1.4 Logout
+
+Revokes a refresh token so it can no longer be used to obtain new access tokens.
+
+```http
+POST /api/v1/auth/logout
+```
+
+**Authorization:** Public (requires a valid refresh token in the body)
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `refreshToken` | string | required |
+
+```json
+{
+  "refreshToken": "<refreshToken>"
+}
+```
+
+**Response — `204 No Content`**
+
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing `refreshToken` |
+| `401` | Refresh token not found, already revoked, or invalid |
+
+---
+
+# 2. Book APIs
+
+Base path: `/api/v1/books`
+
+## 2.1 Create Book
+
+```http
+POST /api/v1/books
+```
+
+**Authorization:** `LIBRARIAN`, `ADMIN`
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `title` | string | required (not blank) |
+| `author` | string | required (not blank) |
+| `edition` | string | required (not blank) |
+| `isbn` | string | required (not blank) |
 
 ```json
 {
@@ -125,7 +275,7 @@ Request
 }
 ```
 
-Response
+**Response — `201 Created`**
 
 ```json
 {
@@ -137,23 +287,26 @@ Response
 }
 ```
 
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing required field(s) |
+| `401` | Missing/invalid token |
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `409` | A (non-deleted) book with the same details already exists |
+
 ---
 
-## Get All Books
-
-**GET**
+## 2.2 Get All Books
 
 ```http
-/api/v1/books
+GET /api/v1/books
 ```
 
-Authorization
+**Authorization:** Authenticated (any role)
 
-```text
-Authenticated User
-```
-
-Response
+**Response — `200 OK`**
 
 ```json
 [
@@ -167,40 +320,66 @@ Response
 ]
 ```
 
----
-
-## Get Book By Id
-
-**GET**
-
-```http
-/api/v1/books/{bookId}
-```
-
-Authorization
-
-```text
-Authenticated User
-```
+Soft-deleted books are excluded from the result.
 
 ---
 
-## Update Book
-
-**PUT**
+## 2.3 Get Book by ID
 
 ```http
-/api/v1/books/{bookId}
+GET /api/v1/books/{id}
 ```
 
-Authorization
+**Authorization:** Authenticated (any role)
 
-```text
-LIBRARIAN
-ADMIN
+**Path Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | Long | Book ID |
+
+**Response — `200 OK`**
+
+```json
+{
+  "id": 1,
+  "title": "Clean Code",
+  "author": "Robert C. Martin",
+  "edition": "1st",
+  "isbn": "9780132350884"
+}
 ```
 
-Request
+**Errors**
+
+| Status | Case |
+|---|---|
+| `404` | Book not found (or has been soft-deleted) |
+
+---
+
+## 2.4 Update Book
+
+```http
+PUT /api/v1/books/{id}
+```
+
+**Authorization:** `LIBRARIAN`, `ADMIN`
+
+**Path Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | Long | Book ID |
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `title` | string | required (not blank) |
+| `author` | string | required (not blank) |
+| `edition` | string | required (not blank) |
+| `isbn` | string | required (not blank) |
 
 ```json
 {
@@ -211,111 +390,187 @@ Request
 }
 ```
 
----
+**Response — `200 OK`** — returns the updated `BookResponse` (same shape as Create Book).
 
-## Delete Book (Soft Delete)
+**Errors**
 
-**DELETE**
-
-```http
-/api/v1/books/{bookId}
-```
-
-Authorization
-
-```text
-LIBRARIAN
-ADMIN
-```
-
-Response
-
-```http
-204 No Content
-```
+| Status | Case |
+|---|---|
+| `400` | Missing required field(s) |
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | Book not found |
 
 ---
 
-# Book Copy APIs
+## 2.5 Delete Book (Soft Delete)
+
+```http
+DELETE /api/v1/books/{id}
+```
+
+**Authorization:** `LIBRARIAN`, `ADMIN`
+
+**Path Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | Long | Book ID |
+
+**Response — `204 No Content`**
+
+**What happens:** the book is flagged as deleted (not removed from the database), so historical loan/waitlist records remain intact. Deleted books no longer appear in `GET /books`, `GET /books/{id}`, and cannot be borrowed or waitlisted.
+
+**Errors**
+
+| Status | Case |
+|---|---|
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | Book not found |
 
 ---
 
-## Create Book Copy
+# 3. Book Copy APIs
 
-**POST**
+A **Book Copy** represents one physical, barcoded instance of a `Book` on a specific shelf.
+
+## 3.1 Create Book Copy
 
 ```http
-/api/v1/books/{bookId}/copies
+POST /api/v1/books/{bookId}/copies
 ```
 
-Authorization
+**Authorization:** `LIBRARIAN`, `ADMIN`
 
-```text
-LIBRARIAN
-ADMIN
-```
+**Path Parameters**
 
-Request
+| Param | Type | Description |
+|---|---|---|
+| `bookId` | Long | ID of the parent book |
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `bookId` | Long | required |
+| `barcode` | string | required (not blank), must be unique |
+| `shelfNumber` | string | required (not blank) |
 
 ```json
 {
+  "bookId": 1,
   "barcode": "BC000001",
   "shelfNumber": "A-12"
 }
 ```
 
----
+**Response — `201 Created`**
 
-## Get Copies of a Book
-
-**GET**
-
-```http
-/api/v1/books/{bookId}/copies
+```json
+{
+  "id": 4,
+  "bookId": 1,
+  "title": "Clean Code",
+  "barcode": "BC000001",
+  "shelfNumber": "A-12",
+  "status": "AVAILABLE"
+}
 ```
 
-Authorization
+New copies are created with status `AVAILABLE`.
 
-```text
-LIBRARIAN
-ADMIN
-```
+**Errors**
 
----
-
-## Get Book Copy
-
-**GET**
-
-```http
-/api/v1/book-copies/{id}
-```
-
-Authorization
-
-```text
-LIBRARIAN
-ADMIN
-```
+| Status | Case |
+|---|---|
+| `400` | Missing required field(s) |
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | Parent book not found |
+| `409` | Barcode already exists |
 
 ---
 
-## Update Shelf Number
-
-**PATCH**
+## 3.2 Get Copies of a Book
 
 ```http
-/api/v1/book-copies/{id}/shelf
+GET /api/v1/books/{bookId}/copies
 ```
 
-Authorization
+**Authorization:** `LIBRARIAN`, `ADMIN`
 
-```text
-LIBRARIAN
-ADMIN
+**Path Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `bookId` | Long | ID of the parent book |
+
+**Response — `200 OK`**
+
+```json
+[
+  {
+    "id": 4,
+    "bookId": 1,
+    "title": "Clean Code",
+    "barcode": "BC000001",
+    "shelfNumber": "A-12",
+    "status": "AVAILABLE"
+  }
+]
 ```
 
-Request
+**Errors**
+
+| Status | Case |
+|---|---|
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | Book not found |
+
+---
+
+## 3.3 Get Book Copy by ID
+
+```http
+GET /api/v1/book-copies/{id}
+```
+
+**Authorization:** `LIBRARIAN`, `ADMIN`
+
+**Path Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | Long | Book copy ID |
+
+**Response — `200 OK`** — single `BookCopyResponse` (see shape above).
+
+**Errors**
+
+| Status | Case |
+|---|---|
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | Book copy not found |
+
+---
+
+## 3.4 Update Book Copy Shelf Number
+
+```http
+PATCH /api/v1/book-copies/{id}/shelf
+```
+
+**Authorization:** `LIBRARIAN`, `ADMIN`
+
+**Path Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | Long | Book copy ID |
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `shelfNumber` | string | required (not blank) |
 
 ```json
 {
@@ -323,30 +578,37 @@ Request
 }
 ```
 
-Response
+**Response — `204 No Content`**
 
-```http
-204 No Content
-```
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing `shelfNumber` |
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | Book copy not found |
 
 ---
 
-## Update Book Copy Status
-
-**PATCH**
+## 3.5 Update Book Copy Status
 
 ```http
-/api/v1/book-copies/{id}/status
+PATCH /api/v1/book-copies/{id}/status
 ```
 
-Authorization
+**Authorization:** `LIBRARIAN`, `ADMIN`
 
-```text
-LIBRARIAN
-ADMIN
-```
+**Path Parameters**
 
-Request
+| Param | Type | Description |
+|---|---|---|
+| `id` | Long | Book copy ID |
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `status` | enum | required. One of `AVAILABLE`, `BORROWED`, `LOST`, `DAMAGED` |
 
 ```json
 {
@@ -354,58 +616,62 @@ Request
 }
 ```
 
-Response
+**Response — `204 No Content`**
 
-```http
-204 No Content
-```
+**Errors**
 
----
-
-## Delete Book Copy
-
-Logical delete by changing status to LOST.
-
-**DELETE**
-
-```http
-/api/v1/book-copies/{id}
-```
-
-Authorization
-
-```text
-LIBRARIAN
-ADMIN
-```
-
-Response
-
-```http
-204 No Content
-```
+| Status | Case |
+|---|---|
+| `400` | Missing/invalid `status` |
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | Book copy not found |
 
 ---
 
-# Loan APIs
+## 3.6 Delete Book Copy (Logical Delete)
+
+Marks the copy as `LOST` rather than removing it, preserving loan history.
+
+```http
+DELETE /api/v1/book-copies/{id}
+```
+
+**Authorization:** `LIBRARIAN`, `ADMIN`
+
+**Path Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | Long | Book copy ID |
+
+**Response — `204 No Content`**
+
+**Errors**
+
+| Status | Case |
+|---|---|
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | Book copy not found |
 
 ---
 
-## Borrow Book
+# 4. Loan APIs
 
-**POST**
+Base path: `/api/v1/loans`
+
+## 4.1 Borrow a Book
 
 ```http
-/api/v1/loans
+POST /api/v1/loans
 ```
 
-Authorization
+**Authorization:** `MEMBER`
 
-```text
-MEMBER
-```
+**Request Body**
 
-Request
+| Field | Type | Rules |
+|---|---|---|
+| `bookId` | Long | required |
 
 ```json
 {
@@ -413,21 +679,21 @@ Request
 }
 ```
 
-Business Flow
+**Business Flow**
 
-* Validate Book
-* Find first AVAILABLE Book Copy
-* Create Loan
-* Mark Book Copy as BORROWED
+1. Validate the book exists (and is not deleted).
+2. Find the first `AVAILABLE` copy of that book.
+3. Create a `Loan` for the current authenticated user, `borrowedAt = now`, `dueDate = now + 15 days`.
+4. Mark that book copy as `BORROWED`.
 
-Response
+**Response — `201 Created`**
 
 ```json
 {
   "loanId": 10,
   "bookId": 1,
-  "bookTitle": "Clean Code",
   "copyId": 4,
+  "bookTitle": "Clean Code",
   "barcode": "BC000001",
   "borrowedAt": "2026-08-03T12:00:00",
   "dueDate": "2026-08-18T12:00:00",
@@ -435,24 +701,31 @@ Response
 }
 ```
 
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing `bookId` |
+| `403` | Caller is not `MEMBER` |
+| `404` | Book not found, or no `AVAILABLE` copy exists for the book |
+
+> **Note:** There is currently no automatic waitlist enrollment when no copy is available — the request simply fails with `404`. Joining the waitlist is a separate, explicit call (see Waitlist APIs below).
+
 ---
 
-## Return Book
-
-**POST**
+## 4.2 Return a Book
 
 ```http
-/api/v1/loans/return
+POST /api/v1/loans/return
 ```
 
-Authorization
+**Authorization:** `LIBRARIAN`, `ADMIN`
 
-```text
-LIBRARIAN
-ADMIN
-```
+**Request Body**
 
-Request
+| Field | Type | Rules |
+|---|---|---|
+| `barcode` | string | required (not blank) |
 
 ```json
 {
@@ -460,37 +733,36 @@ Request
 }
 ```
 
-Business Flow
+**Business Flow**
 
-* Find Book Copy using barcode
-* Find active loan
-* Mark Loan as RETURNED
-* Set returnedAt
-* Mark Book Copy AVAILABLE
+1. Find the book copy by barcode.
+2. Find its active (`BORROWED`) loan.
+3. Set `returnedAt = now` and mark the loan `RETURNED`.
+4. Mark the book copy `AVAILABLE`.
 
-Response
+**Response — `204 No Content`**
 
-```http
-204 No Content
-```
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing `barcode` |
+| `403` | Caller is not `LIBRARIAN` or `ADMIN` |
+| `404` | No book copy with that barcode, or no active loan exists for that copy |
 
 ---
 
-## Get Active Loans
-
-**GET**
+## 4.3 Get My Active Loans
 
 ```http
-/api/v1/loans/me
+GET /api/v1/loans/me
 ```
 
-Authorization
+**Authorization:** `MEMBER`
 
-```text
-MEMBER
-```
+Returns the calling member's currently `BORROWED` (not yet returned) loans.
 
-Response
+**Response — `200 OK`**
 
 ```json
 [
@@ -505,36 +777,28 @@ Response
 ]
 ```
 
+**Errors**
+
+| Status | Case |
+|---|---|
+| `403` | Caller is not `MEMBER` |
+
 ---
 
-## Loan History
-
-**GET**
+## 4.4 Get My Loan History
 
 ```http
-/api/v1/loans/history
+GET /api/v1/loans/history
 ```
 
-Authorization
+**Authorization:** `MEMBER`
 
-```text
-MEMBER
-```
+Returns **all** of the calling member's loans (borrowed and returned), most recent first.
 
-Response
+**Response — `200 OK`**
 
 ```json
 [
-  {
-    "loanId": 15,
-    "bookId": 2,
-    "title": "Clean Code",
-    "barcode": "BC000012",
-    "borrowedAt": "2026-07-01T09:00:00",
-    "dueDate": "2026-07-16T09:00:00",
-    "returnedAt": "2026-07-10T17:00:00",
-    "status": "RETURNED"
-  },
   {
     "loanId": 18,
     "bookId": 5,
@@ -544,65 +808,47 @@ Response
     "dueDate": "2026-08-16T10:30:00",
     "returnedAt": null,
     "status": "BORROWED"
+  },
+  {
+    "loanId": 15,
+    "bookId": 2,
+    "title": "Clean Code",
+    "barcode": "BC000012",
+    "borrowedAt": "2026-07-01T09:00:00",
+    "dueDate": "2026-07-16T09:00:00",
+    "returnedAt": "2026-07-10T17:00:00",
+    "status": "RETURNED"
   }
 ]
 ```
 
----
+**Errors**
 
-# Common Error Response
-
-```json
-{
-  "timestamp": "2026-08-03T10:15:20",
-  "status": 404,
-  "error": "Not Found",
-  "message": "Book not found"
-}
-```
+| Status | Case |
+|---|---|
+| `403` | Caller is not `MEMBER` |
 
 ---
 
-# Business Rules
+# 5. Waitlist APIs
 
-## Borrow
+Base path: `/api/v1/waitlist`
 
-* Only MEMBER can borrow books.
-* Only AVAILABLE book copies can be borrowed.
-* Borrowing creates a Loan.
-* Borrowing changes Book Copy status to BORROWED.
-* Borrow duration is 15 days.
+## 5.1 Join Waitlist
 
----
-
-## Return
-
-* Only LIBRARIAN and ADMIN can process returns.
-* Barcode uniquely identifies the physical book copy.
-* Returning updates Loan status to RETURNED.
-* Returning changes Book Copy status to AVAILABLE.
-
----
-
-# Waitlist APIs
-
-## 1. Join Waitlist
-
-Allows a member to join the waitlist for a book when no available copies exist.
-
-### Endpoint
+Lets a member join the waitlist for a book (typically used when no copies are currently available).
 
 ```http
 POST /api/v1/waitlist
 ```
 
-### Authorization
+**Authorization:** `MEMBER`
 
-```text
-MEMBER
-```
+**Request Body**
 
-### Request Body
+| Field | Type | Rules |
+|---|---|---|
+| `bookId` | Long | required |
 
 ```json
 {
@@ -610,56 +856,37 @@ MEMBER
 }
 ```
 
-### Response
+**Response — `204 No Content`**
 
-```http
-204 No Content
-```
+**Business Rules**
 
-### Business Rules
+- The authenticated user is taken from the JWT/security context.
+- A user cannot join the same book's waitlist twice while an existing entry is `WAITING`.
+- Deleted books cannot be waitlisted.
+- A prior `CANCELLED`, `EXPIRED`, or `FULFILLED` entry does **not** block re-joining.
+- A successful call creates a new entry with status `WAITING`.
 
-* The authenticated user is obtained from the JWT/security context.
-* The user cannot join the same book's waitlist more than once while the existing entry is `WAITING`.
-* Deleted books cannot be added to the waitlist.
-* A previous `CANCELLED`, `EXPIRED`, or `FULFILLED` entry does not prevent the user from joining again.
-* A successful request creates a new waitlist entry with status `WAITING`.
+**Errors**
 
-### Possible Errors
-
-| Status | Error                   | Description                             |
-| ------ | ----------------------- | --------------------------------------- |
-| `404`  | Book Not Found          | Book does not exist or has been deleted |
-| `409`  | Waitlist Already Exists | User is already waiting for the book    |
+| Status | Error | Description |
+|---|---|---|
+| `403` | Forbidden | Caller is not `MEMBER` |
+| `404` | Book Not Found | Book does not exist or has been deleted |
+| `409` | Waitlist Already Exists | User already has a `WAITING` entry for this book |
 
 ---
 
-## 2. Get My Waitlist
+## 5.2 Get My Waitlist
 
-Returns all waitlist entries belonging to the currently authenticated member.
-
-### Endpoint
+Returns all waitlist entries belonging to the currently authenticated member, across all statuses.
 
 ```http
 GET /api/v1/waitlist/me
 ```
 
-### Authorization
+**Authorization:** `MEMBER`
 
-```text
-MEMBER
-```
-
-### Request
-
-No request body or query parameters are required.
-
-The authenticated user is determined from the JWT/security context.
-
-### Response
-
-```http
-200 OK
-```
+**Response — `200 OK`**
 
 ```json
 [
@@ -676,80 +903,52 @@ The authenticated user is determined from the JWT/security context.
     "title": "Effective Java",
     "status": "FULFILLED",
     "joinedAt": "2026-08-07T10:15:00"
-  },
-  {
-    "waitlistId": 4,
-    "bookId": 9,
-    "title": "Design Patterns",
-    "status": "CANCELLED",
-    "joinedAt": "2026-08-01T09:20:00"
   }
 ]
 ```
 
-### Ordering
+**Ordering:** most recently joined first (`createdAt DESC`).
 
-Entries are returned with the **most recently joined entries first**, based on `createdAt DESC`.
+**Statuses returned:** `WAITING`, `NOTIFIED`, `FULFILLED`, `EXPIRED`, `CANCELLED`.
 
-### Business Rules
+**Errors**
 
-* Only the authenticated user's waitlist entries are returned.
-* All statuses are included:
-
-    * `WAITING`
-    * `NOTIFIED`
-    * `FULFILLED`
-    * `EXPIRED`
-    * `CANCELLED`
-* Pagination and filtering can be added later.
+| Status | Case |
+|---|---|
+| `403` | Caller is not `MEMBER` |
 
 ---
 
-## 3. Cancel Waitlist
+## 5.3 Cancel Waitlist Entry
 
-Allows a member to cancel their own active waitlist entry.
-
-### Endpoint
+Lets a member cancel their own active (`WAITING`) waitlist entry.
 
 ```http
 DELETE /api/v1/waitlist/{waitlistId}
 ```
 
-### Authorization
+**Authorization:** `MEMBER`
 
-```text
-MEMBER
-```
+**Path Parameters**
 
-### Request
+| Param | Type | Description |
+|---|---|---|
+| `waitlistId` | Long | ID of the waitlist entry |
 
-No request body is required.
+**Response — `204 No Content`**
 
-The waitlist ID is provided as a path variable.
+**Business Rules**
 
-```http
-DELETE /api/v1/waitlist/12
-```
+- A member can cancel only their own entry.
+- The entry must currently be `WAITING`.
+- The entry is not physically deleted — its status is changed to `CANCELLED`, preserving history.
 
-### Response
+**Errors**
 
-```http
-204 No Content
-```
-
-### Business Rules
-
-* A member can cancel only their own waitlist entry.
-* The waitlist entry must currently have status `WAITING`.
-* The entry is not physically deleted from the database.
-* Instead, its status is changed to `CANCELLED`.
-* This preserves waitlist history.
-
-### Possible Errors
-
-| Status | Error              | Description                                                                      |
-| ------ | ------------------ | -------------------------------------------------------------------------------- |
-| `404`  | Waitlist Not Found | Entry does not exist, does not belong to the user, or is not currently `WAITING` |
+| Status | Error | Description |
+|---|---|---|
+| `403` | Forbidden | Caller is not `MEMBER` |
+| `404` | Waitlist Not Found | Entry doesn't exist, doesn't belong to the caller, or is not currently `WAITING` |
 
 ---
 
@@ -778,19 +977,78 @@ The current implementation supports:
 * Cancelling a waiting entry
 * Maintaining waitlist status history
 
-Future enhancements can include:
+`NOTIFIED`, `FULFILLED`, and `EXPIRED` are modeled as valid statuses but nothing in the system currently transitions an entry into them automatically — that's part of the future waitlist automation work below.
 
-* Automatic notification when a copy becomes available
-* Reservation windows
-* Email/push notifications
-* Automatic expiration
-* Waitlist-to-loan conversion
-* Pagination and filtering
+---
 
+# 6. Admin APIs
+
+Base path: `/api/v1/admin`
+
+## 6.1 Update User Role
+
+Changes a user's role. Used to promote a `MEMBER` to `LIBRARIAN`, grant `ADMIN` access, etc.
+
+```http
+PATCH /api/v1/admin/users/role
+```
+
+**Authorization:** `ADMIN`
+
+**Request Body**
+
+| Field | Type | Rules |
+|---|---|---|
+| `email` | string | required, must be a valid email — identifies the target user |
+| `role` | enum | required. One of `MEMBER`, `LIBRARIAN`, `ADMIN` |
+
+```json
+{
+  "email": "john@example.com",
+  "role": "LIBRARIAN"
+}
+```
+
+**Response — `204 No Content`**
+
+**What happens:** looks the user up by email and updates their role. If the user already has the requested role, the call is a no-op and still returns `204`.
+
+**Errors**
+
+| Status | Case |
+|---|---|
+| `400` | Missing/invalid `email` or `role` |
+| `403` | Caller is not `ADMIN` |
+| `404` | No user found with that email |
+
+---
+
+# Business Rules Summary
+
+## Borrowing
+
+- Only `MEMBER` can borrow books.
+- Only `AVAILABLE` book copies can be borrowed; the system assigns the first available copy automatically (you cannot pick a specific copy).
+- Borrowing creates a `Loan` and flips the assigned copy to `BORROWED`.
+- Loan duration is fixed at **15 days** from the moment of borrowing.
+
+## Returning
+
+- Only `LIBRARIAN` and `ADMIN` can process returns.
+- Returns are looked up by **barcode**, which uniquely identifies the physical copy.
+- Returning sets the loan's `returnedAt`, flips its status to `RETURNED`, and flips the copy back to `AVAILABLE`.
+
+## Deletion Semantics
+
+- **Books** are soft-deleted (flagged, not removed) so loan/waitlist history stays valid.
+- **Book copies** are "deleted" by setting their status to `LOST`, for the same reason.
+- **Users** carry a `deleted` flag in the schema for the same soft-delete pattern, though no endpoint currently exposes user deletion.
+
+---
 
 # Future Enhancements
 
-* Waitlist Management - v2
+* Waitlist Management — v2
 * Loan Renewal
 * Fine Calculation
 * Payment Integration
