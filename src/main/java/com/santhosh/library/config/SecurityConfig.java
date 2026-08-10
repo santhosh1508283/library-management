@@ -37,7 +37,7 @@ public class SecurityConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/v1/**")
-                        .allowedOrigins("http://localhost:5173", "https://library-management-frontend-8zq0.onrender.com")
+                        .allowedOrigins("http://localhost:5173", "https://library-management-api-d8dz.onrender.com")
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
                         .allowedHeaders("*");
             }
